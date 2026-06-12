@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<meta name="theme-color" content="#F7F3EC"/>
+<title>Lanka Trade Finder</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#F4F2ED;--surface:#FFFFFF;--surface-2:#F3EEE5;--surface-3:#ECE6DA;
+  --gold:#C9A24B;--gold-dark:#9A7A2E;--gold-grad:linear-gradient(135deg,#D4A93F 0%,#C9A24B 45%,#9A7A2E 100%);
+  --ink:#22201C;--ink-soft:#5C564C;--gray-mid:#8A8275;
+  --nav:#23211D;--nav-2:#2E2B26;--nav-soft:#9C968B;
+  --border:rgba(34,32,28,0.10);--border-2:rgba(34,32,28,0.16);
+  --shadow:0 6px 24px rgba(34,32,28,0.08);
+  --green:#3f6b2e;--green-bg:#E8F0E2;--blue:#2456a6;--blue-bg:#dfeaff;--red:#a63b3b;--red-bg:#f6e2e2;
+  --font-display:'Fraunces',Georgia,serif;--font-body:'Inter',-apple-system,sans-serif;
+}
+html,body{background:var(--bg);color:var(--ink);font-family:var(--font-body);min-height:100%}
+body{margin:0;padding:0}
+
+/* App shell */
+.app{display:flex;min-height:100vh}
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:230px;background:var(--nav);color:#fff;display:flex;flex-direction:column;z-index:50;transform:translateX(-100%);transition:transform .25s ease}
+.sidebar.open{transform:translateX(0)}
+.brand{padding:22px 20px 16px;border-bottom:1px solid rgba(255,255,255,0.08)}
+.brand .logo{font-family:var(--font-display);font-weight:600;font-size:19px;letter-spacing:-.3px;line-height:1.15}
+.brand .logo .mk{color:var(--gold)}
+.brand .tag{color:var(--nav-soft);font-size:11px;margin-top:4px;letter-spacing:.3px}
+.nav{flex:1;padding:14px 12px;overflow-y:auto}
+.nav .grp{color:var(--nav-soft);font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:14px 10px 6px}
+.navitem{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;color:#D8D4CC;font-size:14px;font-weight:500;padding:11px 12px;border-radius:10px;margin-bottom:2px}
+.navitem .ic{font-size:16px;width:20px;text-align:center}
+.navitem:hover{background:var(--nav-2);color:#fff}
+.navitem.active{background:var(--gold-grad);color:#fff;font-weight:600;box-shadow:0 3px 10px rgba(154,122,46,0.35)}
+.sb-foot{padding:14px 18px;border-top:1px solid rgba(255,255,255,0.08);color:var(--nav-soft);font-size:11px;line-height:1.5}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:40;display:none}
+.overlay.show{display:block}
+
+/* Main area */
+.main{flex:1;min-width:0;margin-left:0;display:flex;flex-direction:column}
+.topbar{position:sticky;top:0;z-index:30;background:rgba(244,242,237,0.92);backdrop-filter:blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:14px;padding:13px 16px}
+.menu-btn{background:var(--surface);border:1px solid var(--border-2);width:42px;height:42px;border-radius:11px;font-size:19px;color:var(--ink);display:flex;align-items:center;justify-content:center;flex:0 0 auto}
+.topbar .tt{font-family:var(--font-display);font-weight:600;font-size:18px;flex:1;min-width:0}
+.topbar .pill{background:var(--surface);border:1px solid var(--border);color:var(--gold-dark);font-size:12px;font-weight:600;padding:6px 11px;border-radius:20px;white-space:nowrap}
+.content{padding:16px;max-width:900px;width:100%;margin:0 auto}
+.view{display:none}
+.view.active{display:block}
+
+@media(min-width:980px){
+  .sidebar{transform:translateX(0)}
+  .main{margin-left:230px}
+  .menu-btn{display:none}
+  .overlay{display:none!important}
+}
+
+h1{font-family:var(--font-display);font-weight:600;font-size:24px;letter-spacing:-.5px}
+.sub{color:var(--gray-mid);font-size:13px;margin-top:3px;margin-bottom:18px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px;margin-bottom:14px}
+label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px}
+input,select{width:100%;background:var(--surface-2);border:1px solid var(--border-2);border-radius:12px;color:var(--ink);padding:13px 14px;font-size:15px;font-family:inherit;outline:none}
+input:focus,select:focus{border-color:var(--gold)}
+.row{display:flex;gap:10px;margin-bottom:12px}
+.row>div{flex:1}
+button{font-family:inherit;cursor:pointer;border:none}
+.btn{background:var(--gold-grad);color:#fff;font-weight:600;font-size:15px;padding:14px;border-radius:12px;width:100%;box-shadow:var(--shadow)}
+.btn:active{transform:translateY(1px)}
+.btn2{background:var(--surface);color:var(--gold-dark);border:1px solid var(--gold);font-weight:600;font-size:14px;padding:12px;border-radius:12px;width:100%;margin-top:8px}
+
+/* Dashboard stats */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:18px}
+@media(min-width:620px){.stats{grid-template-columns:repeat(4,1fr)}}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px 15px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat .k{font-size:11px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;color:var(--gray-mid)}
+.stat .v{font-family:var(--font-display);font-weight:600;font-size:30px;line-height:1.1;margin-top:8px;color:var(--ink)}
+.stat .bar{height:4px;border-radius:4px;margin-top:11px;background:var(--surface-3);overflow:hidden}
+.stat .bar i{display:block;height:100%;border-radius:4px}
+.stat.s-cat .v{color:var(--gold-dark)} .stat.s-cat .bar i{background:var(--gold)}
+.stat.s-con .v{color:var(--blue)} .stat.s-con .bar i{background:var(--blue)}
+.stat.s-int .v{color:var(--green)} .stat.s-int .bar i{background:var(--green)}
+.stat.s-won .v{color:#7a4ea6} .stat.s-won .bar i{background:#7a4ea6}
+.dash-row{display:grid;grid-template-columns:1fr;gap:14px}
+@media(min-width:720px){.dash-row{grid-template-columns:1fr 1fr}}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:16px;box-shadow:var(--shadow);padding:16px}
+.panel h3{font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:4px}
+.panel .pn-sub{font-size:12px;color:var(--gray-mid);margin-bottom:12px}
+.distrow{display:flex;align-items:center;gap:10px;margin-bottom:9px;font-size:13px}
+.distrow .dn{width:96px;flex:0 0 auto;color:var(--ink-soft)}
+.distrow .db{flex:1;height:8px;background:var(--surface-3);border-radius:6px;overflow:hidden}
+.distrow .db i{display:block;height:100%;background:var(--gold-grad);border-radius:6px}
+.distrow .dv{width:38px;text-align:right;color:var(--gray-mid);font-weight:600}
+
+.count{font-size:13px;color:var(--gray-mid);margin:14px 2px 8px}
+.biz{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:13px 14px;margin-bottom:9px}
+.biz .nm{font-weight:600;font-size:15px;color:var(--ink)}
+.biz .meta{font-size:12.5px;color:var(--gray-mid);margin-top:3px;line-height:1.5}
+.tag{display:inline-block;background:var(--surface-3);color:var(--gold-dark);font-size:11px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:6px}
+.ph{display:inline-block;margin-top:7px;font-size:13px;font-weight:600;color:var(--gold-dark);text-decoration:none}
+.badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 9px;border-radius:20px;margin-right:6px}
+.badge.buyer{background:var(--green-bg);color:var(--green)}
+.badge.reseller{background:#FBEFD6;color:#9A7A2E}
+.reason{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.45;font-style:italic}
+.web{display:inline-block;margin-top:7px;font-size:13px;font-weight:600;color:var(--green);text-decoration:none}
+.wa{display:inline-block;font-size:12.5px;font-weight:600;color:#1f8a4c;text-decoration:none;margin-left:8px}
+.wa:active{opacity:.6}
+.map{color:var(--ink-soft);text-decoration:none;border-bottom:1px dotted var(--border-2)}
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 2px 14px}
+.chip{background:var(--surface-3);color:var(--ink-soft);font-size:12.5px;font-weight:600;padding:6px 12px;border-radius:20px;cursor:pointer;border:1px solid var(--border)}
+.chip:active{background:var(--surface-2)}
+.bub{padding:11px 13px;border-radius:14px;margin-bottom:8px;font-size:14px;line-height:1.5;white-space:pre-wrap}
+.bub.me{background:var(--gold-grad);color:#fff;margin-left:36px}
+.bub.ai{background:var(--surface-2);color:var(--ink);margin-right:18px;border:1px solid var(--border)}
+.bub.ai a{color:var(--gold-dark)}
+.typing{font-size:13px;color:var(--gold-dark);padding:6px 4px}
+.ph:active{opacity:.6}
+.find{font-size:12px;color:var(--gray-mid);text-decoration:underline;margin-top:6px;display:inline-block}
+.empty{text-align:center;color:var(--gray-mid);padding:30px 10px;font-size:14px}
+.loading{text-align:center;color:var(--gold-dark);padding:18px;font-size:14px}
+.sec{font-family:var(--font-display);font-size:16px;font-weight:600;margin:20px 2px 8px;color:var(--ink)}
+.spin{display:inline-block;width:15px;height:15px;border:2px solid #e6d9b5;border-top-color:var(--gold);border-radius:50%;animation:s .7s linear infinite;vertical-align:-2px;margin-right:6px}
+@keyframes s{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="overlay" id="overlay" onclick="closeNav()"></div>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <div class="logo">Lanka <span class="mk">Trade</span><br>Finder</div>
+      <div class="tag">B2B LEAD & OUTREACH SYSTEM</div>
+    </div>
+    <nav class="nav">
+      <div class="grp">Overview</div>
+      <button class="navitem active" data-view="dashboard" onclick="nav('dashboard')"><span class="ic">▦</span> Dashboard</button>
+      <div class="grp">Work</div>
+      <button class="navitem" data-view="search" onclick="nav('search')"><span class="ic">⌕</span> Find Leads</button>
+      <button class="navitem" data-view="assistant" onclick="nav('assistant')"><span class="ic">✎</span> Trade Assistant</button>
+      <button class="navitem" data-view="history" onclick="nav('history')"><span class="ic">☷</span> Contacts &amp; Follow-up</button>
+    </nav>
+    <div class="sb-foot">Connected to live directory<br><span id="footCount">loading…</span></div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar">
+      <button class="menu-btn" onclick="openNav()">☰</button>
+      <div class="tt" id="viewTitle">Dashboard</div>
+      <span class="pill" id="topPill">—</span>
+    </div>
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <section class="view active" id="view-dashboard">
+        <div class="stats">
+          <div class="stat s-cat"><div class="k">Companies</div><div class="v" id="stCat">—</div><div class="bar"><i style="width:100%"></i></div></div>
+          <div class="stat s-con"><div class="k">Contacted</div><div class="v" id="stCon">—</div><div class="bar"><i id="barCon" style="width:0%"></i></div></div>
+          <div class="stat s-int"><div class="k">Interested</div><div class="v" id="stInt">—</div><div class="bar"><i id="barInt" style="width:0%"></i></div></div>
+          <div class="stat s-won"><div class="k">Won</div><div class="v" id="stWon">—</div><div class="bar"><i id="barWon" style="width:0%"></i></div></div>
+        </div>
+        <div class="dash-row">
+          <div class="panel">
+            <h3>Directory by district</h3>
+            <div class="pn-sub">Where your leads are located</div>
+            <div id="distChart"><div class="empty">Loading…</div></div>
+          </div>
+          <div class="panel">
+            <h3>Recent activity</h3>
+            <div class="pn-sub">Latest shops you contacted</div>
+            <div id="recentActivity"><div class="empty">No contacts yet. Find a lead and reach out.</div></div>
+          </div>
+        </div>
+        <div class="panel" style="margin-top:14px">
+          <h3>💰 AI usage &amp; estimated cost</h3>
+          <div class="pn-sub">Smart Find, Deep Search and Chat cost money. The gold search is free.</div>
+          <div id="usageBox"><div class="empty">No AI usage yet.</div></div>
+        </div>
+      </section>
+
+      <!-- SEARCH -->
+      <section class="view" id="view-search">
+        <div class="card">
+          <label>Product</label>
+          <input id="product" placeholder="e.g. white cotton gloves, welding rod, safety shoes" value="white cotton gloves"/>
+          <div style="height:12px"></div>
+          <div class="row">
+            <div>
+              <label>District</label>
+              <select id="district"><option value="">All districts</option></select>
+            </div>
+            <div>
+              <label>Town / area (optional)</label>
+              <input id="area" placeholder="e.g. Old Moor Street, Nugegoda"/>
+            </div>
+          </div>
+          <button class="btn" onclick="runSearch()">🔍 Find buyers &amp; sellers</button>
+          <button class="btn2" onclick="smartFind()">🔎 Smart Find — AI ranks your shops (slower, thorough)</button>
+          <button class="btn2" onclick="deepSearch()">🌐 Deep search the web (live)</button>
+        </div>
+        <div class="chips" id="recentChips"></div>
+        <div id="results"></div>
+      </section>
+
+      <!-- ASSISTANT -->
+      <section class="view" id="view-assistant">
+        <div class="card" id="chatCard">
+          <div style="font-family:var(--font-display);font-size:17px;font-weight:600;margin-bottom:4px">💬 Trade Assistant</div>
+          <div style="font-size:12.5px;color:var(--gray-mid);margin-bottom:12px">Knows all your shops. Ask anything, or get an outreach message written.</div>
+          <div id="chatLog" style="max-height:50vh;overflow-y:auto;margin-bottom:10px"></div>
+          <div class="chips" id="chatSuggest" style="margin-bottom:10px">
+            <span class="chip" onclick="askChat('Which food factories in Gampaha would buy gloves?')">Food factories needing gloves</span>
+            <span class="chip" onclick="askChat('List 5 hardware shops in Colombo 12 with phone numbers')">Hardware in Colombo 12</span>
+            <span class="chip" onclick="askChat('Write a short WhatsApp message to pitch white cotton gloves to a food factory')">Write a WhatsApp pitch</span>
+          </div>
+          <div class="row" style="margin-bottom:0">
+            <div style="flex:1"><input id="chatInput" placeholder="e.g. Who buys welding rods in Colombo? Write them a pitch." onkeydown="if(event.key==='Enter')askChat()"/></div>
+          </div>
+          <button class="btn" style="margin-top:10px" onclick="askChat()">Ask</button>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="view" id="view-history">
+        <div id="historyView"></div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL="https://fceomyvmaqgwjdhgxgfh.supabase.co";
+const SB_KEY="sb_publishable__a7JCWcdEW5ch1ljq25veg_x0cOXCSj";
+let sb=null, CATALOG=[];
+try{ sb=supabase.createClient(SB_URL,SB_KEY); }catch(e){ console.warn("supabase init",e); }
+
+// ---- ERP navigation ----
+const VIEW_TITLES={dashboard:'Dashboard',search:'Find Leads',assistant:'Trade Assistant',history:'Contacts & Follow-up'};
+function nav(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.navitem').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.getElementById('viewTitle').textContent=VIEW_TITLES[v]||'';
+  if(v==='history'){ showHistory(); }
+  if(v==='dashboard'){ renderDashboard(); }
+  closeNav();
+  window.scrollTo(0,0);
+}
+function openNav(){ document.getElementById('sidebar').classList.add('open'); document.getElementById('overlay').classList.add('show'); }
+function closeNav(){ document.getElementById('sidebar').classList.remove('open'); document.getElementById('overlay').classList.remove('show'); }
+
+let CONTACTED={};   // shop_name(lower) -> latest {channel, at}
+let CONTACT_LOG=[]; // full log rows
+
+async function loadContacted(){
+  if(!sb) return;
+  try{
+    const {data,error}=await sb.from('contacts_log').select('id,shop_name,channel,product,status,note,contacted_at').order('contacted_at',{ascending:false}).limit(2000);
+    if(error){ console.warn(error); return; }
+    CONTACT_LOG=data||[];
+    CONTACTED={};
+    for(const r of CONTACT_LOG){
+      const k=(r.shop_name||'').toLowerCase().trim();
+      if(!CONTACTED[k]) CONTACTED[k]={channel:r.channel, at:r.contacted_at};
+    }
+  }catch(e){ console.warn(e); }
+}
+function timeAgo(iso){
+  if(!iso) return '';
+  const d=(Date.now()-new Date(iso).getTime())/86400000;
+  if(d<1) return 'today'; if(d<2) return 'yesterday';
+  return Math.floor(d)+' days ago';
+}
+async function logContact(shop, channel, prod){
+  const key=(shop||'').toLowerCase().trim();
+  // optimistic local state so the badge shows immediately
+  CONTACTED[key]={channel, at:new Date().toISOString()};
+  if(!sb){ console.warn('No Supabase client'); return; }
+  try{
+    const {data,error}=await sb.from('contacts_log').insert({shop_name:shop, channel:channel, product:prod||''}).select();
+    if(error){ console.warn('log insert error', error); alert('Could not save to history: '+(error.message||error.code||'unknown')); return; }
+    // add to local log so history shows it without a full reload
+    if(data && data[0]) CONTACT_LOG.unshift(data[0]);
+  }catch(e){ console.warn(e); alert('Could not save to history (network).'); }
+}
+async function updateStatus(id, status){
+  if(!sb) return;
+  try{ await sb.from('contacts_log').update({status:status, updated_at:new Date().toISOString()}).eq('id',id);
+    const row=CONTACT_LOG.find(r=>r.id===id); if(row) row.status=status;
+  }catch(e){ console.warn(e); }
+}
+async function updateNote(id, note){
+  if(!sb) return;
+  try{ await sb.from('contacts_log').update({note:note, updated_at:new Date().toISOString()}).eq('id',id);
+    const row=CONTACT_LOG.find(r=>r.id===id); if(row) row.note=note;
+  }catch(e){ console.warn(e); }
+}
+function waSend(num, msg, shop, prod){
+  let n=(num||'').replace(/[^0-9]/g,'');
+  if(n.startsWith('0')) n='94'+n.slice(1); else if(!n.startsWith('94')&&n) n='94'+n;
+  logContact(shop,'whatsapp',prod);
+  window.open('https://wa.me/'+n+(msg?('?text='+encodeURIComponent(msg)):''),'_blank');
+}
+function emailSend(addr, subject, body, shop, prod){
+  logContact(shop,'email',prod);
+  window.open('mailto:'+(addr||'')+'?subject='+encodeURIComponent(subject||'')+'&body='+encodeURIComponent(body||''),'_blank');
+}
+
+const CATLABEL={gloves:"Gloves",safety:"Safety / PPE",hardware:"Hardware",welding:"Welding",
+steel:"Steel / metal",tools:"Tools & machinery",industrial:"Industrial",
+construction:"Construction firm",food:"Food factory","glove-maker":"Glove maker"};
+
+function catsForProduct(p){p=p.toLowerCase();
+ if(/glove/.test(p))return ["gloves","safety","glove-maker","construction","food","industrial"];
+ if(/weld|electrode|\brod|filler ?wire|\bmig\b|\btig\b|\barc\b|flux|brazing|soldering|gouging/.test(p))return ["welding","tools","steel","construction","industrial"];
+ if(/safety|ppe|helmet|hard ?hat|shoe|boot|mask|goggle|coverall|vest|harness|ear ?plug|ear ?muff|respirator|apron|face ?shield|hi-?vis|reflective|lanyard|fall protection|first aid/.test(p))return ["safety","gloves","construction","food","industrial"];
+ if(/steel|stainless|metal|iron|alumin|brass|copper|sheet|plate|angle|channel|beam|\bpipe\b|tube|mesh|rebar|\bbar\b|coil|billet|ingot|galvani/.test(p))return ["steel","hardware","welding","construction","industrial"];
+ if(/bolt|nut|screw|fasten|washer|rivet|hardware|\btool|abrasive|turn ?buckle|anchor|hinge|lock|padlock|chain|hoist|\bblock\b|rope|sling|\bwire\b|cable|valve|\bcock\b|fitting|flange|\bpump\b|bearing|grind|cutting ?disc|grinding ?wheel|sand ?paper|emery|drill|\bbit\b|spanner|wrench|hammer|plier|screwdriver|saw|blade|chisel|file|tape|measure|level|\bpaint|brush|roller|adhesive|glue|sealant|silicone|epoxy|clamp|\bvice\b|pulley|coupling|gasket|seal|\boil\b|grease|lubricant|hose|nozzle|spray|nail|tarpaulin|tarp|net|bucket|trolley|ladder|wheel ?barrow|barrow|caulking|grease gun|staple|ratchet|socket|allen|axe|planer|puller|trowel|knife|scissor|riveter|tin snip|hacksaw|tool box|bench vice|wire strip|jack|tile cutter|bolt cutter|pipe cutter|scaffold|jack stand|key|aluminium|upvc|pvc|gutter|beading|panel/.test(p))return ["hardware","tools","steel","welding","construction","industrial"];
+ if(/machine|machinery|compressor|generator|\bmotor\b|hydraulic|pneumatic|automation|equipment|spare|gear ?box|conveyor|\bpress\b|lathe|cnc|forklift|crane|winch|\bfan\b|blower|boiler|chiller|cooling|grinder|welding machine|cut ?off|drill machine|mixer|vibrator/.test(p))return ["industrial","tools","welding","steel","hardware","construction"];
+ if(/cement|tile|brick|\bsand\b|aggregate|concrete|plaster|\bpaint|primer|\bplumb|electric|\bcable\b|switch|socket|wiring|conduit|\bbuild|roof|gutter|door|window|sanitary|bathroom|fitting|insulation|waterproof|admixture|asphalt|bitumen|rebar|rubble|interlock|hollow block|precast|quarry|glass wool|scaffold|solar|timber|flooring|ceiling|wall finish|kitchen|bath fitting|water pump|water tank|granite|marble|tile|plywood|mdf|putty|emulsion|enamel|distemper|grout|epoxy|vinyl|laminate|terrazzo|wallpaper|cladding|partition|gypsum|amano|binding wire|barbed wire|wire mesh|chain link|gabion|purlin|g\.?i pipe|gi sheet|thread bar|nylon rope|wire rope|acro jack|u jack|t jack|p cone|caster|catwalk|coupling|circuit breaker|d board|light fitting|lamp|fan\b|cctv|access control|fire detection|commode|wash basin|faucet|shower|wpc|hdpe|ppr|fence|handrail|railing|staircase|wardrobe|cupboard|curtain|blind|signboard|banner|name board/.test(p))return ["construction","hardware","steel","industrial"];
+ if(/clean|detergent|hygiene|sanitiz|disinfect|tissue|towel|trash|garbage|bin ?liner/.test(p))return ["food","industrial","safety","construction"];
+ return null;}
+
+async function loadCatalog(){
+  if(!sb){ return; }
+  try{
+    let all=[], from=0, page=1000;
+    while(true){
+      const {data,error}=await sb.from('businesses').select('name,type,cat,addr,phone,district').range(from, from+page-1);
+      if(error){ console.warn(error); break; }
+      const got=data||[];
+      all=all.concat(got);
+      if(got.length<page) break;   // last page
+      from+=page;
+      if(from>20000) break;        // safety stop
+    }
+    CATALOG=all;
+    const ds=[...new Set(CATALOG.map(c=>c.district).filter(Boolean))].sort();
+    const sel=document.getElementById('district');
+    ds.forEach(d=>{const o=document.createElement('option');o.value=d;o.textContent=d;sel.appendChild(o);});
+    const cnt=document.getElementById('catCount');
+    if(cnt) cnt.textContent=`${CATALOG.length} companies loaded`;
+    const n=CATALOG.length.toLocaleString();
+    const stc=document.getElementById('stCat'); if(stc) stc.textContent=n;
+    const fc=document.getElementById('footCount'); if(fc) fc.textContent=`${n} companies`;
+    const tp=document.getElementById('topPill'); if(tp) tp.textContent=`${n} companies`;
+    renderDashboard();
+  }catch(e){ console.warn(e); }
+}
+
+function cardFor(d){
+  const phones=(d.phone||"").trim();
+  const phHtml = phones
+    ? phones.split(/,\s*/).map(p=>`<a class="ph" href="tel:${p.replace(/\s/g,'')}">📞 ${p}</a>`).join(" &nbsp; ")
+    : `<a class="find" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent((d.name||'')+' '+(d.district||'')+' Sri Lanka contact')}">Find contact ↗</a>`;
+  return `<div class="biz"><div class="nm">${d.name||''}</div>
+    <div class="meta">${d.addr||''}${d.district?' · '+d.district:''}</div>
+    <span class="tag">${CATLABEL[d.cat]||d.type||d.cat||''}</span><br>${phHtml}</div>`;
+}
+
+function waLink(raw){
+  let n=raw.replace(/[^0-9]/g,'');
+  if(n.startsWith('0')) n='94'+n.slice(1);      // SL local 0xx -> 94xx
+  else if(!n.startsWith('94') && n.length<=10) n='94'+n;
+  return 'https://wa.me/'+n;
+}
+function leadCard(d){
+  const phones=(d.phone||"").trim();
+  const ck=(d.name||'').toLowerCase().trim();
+  const contacted = CONTACTED[ck];
+  const contactedBadge = contacted ? `<span class="badge" style="background:#dfeaff;color:#2456a6">✅ Contacted ${timeAgo(contacted.at)}</span>` : '';
+  const phHtml = phones
+    ? phones.split(/,\s*/).map(p=>{
+        const tel=p.replace(/\s/g,'');
+        const nm=(d.name||'').replace(/'/g,"\\'");
+        const digits=tel.replace(/[^0-9]/g,'');
+        // SL mobile: 07x... (10 digits starting 07), or 947x...
+        const isMobile = /^07\d{8}$/.test(digits) || /^947\d{8}$/.test(digits);
+        const wa = isMobile ? ` <a class="wa" href="javascript:void(0)" onclick="waSend('${p}','','${nm}','')">WhatsApp</a>` : '';
+        return `<a class="ph" href="tel:${tel}" onclick="logContact('${nm}','call','')">📞 ${p}</a>${wa}`;
+      }).join("<br>")
+    : `<a class="find" target="_blank" href="https://www.google.com/search?q=${encodeURIComponent((d.name||'')+' Sri Lanka contact')}">Find contact ↗</a>`;
+  const role=(d.role||"").toLowerCase();
+  const badge = role.includes('buy')
+    ? `<span class="badge buyer">🟢 BUYER</span>`
+    : (role.includes('resell')||role.includes('retail')||role.includes('distrib')
+        ? `<span class="badge reseller">🟡 RESELLER</span>` : '');
+  const web = (d.website||"").trim()
+    ? `<br><a class="web" target="_blank" href="${d.website.startsWith('http')?d.website:'https://'+d.website}">🌐 ${d.website.replace(/^https?:\/\//,'').slice(0,40)}</a>` : '';
+  const addr=(d.addr||'').trim();
+  const addrHtml = addr
+    ? `<a class="map" target="_blank" href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addr+' Sri Lanka')}">📍 ${addr}</a>${d.type?' · '+d.type:''}`
+    : (d.type||'');
+  return `<div class="biz"><div class="nm">${badge}${contactedBadge}${d.name||''}</div>
+    <div class="meta">${addrHtml}</div>
+    ${d.reason?`<div class="reason">💡 ${d.reason}</div>`:''}
+    ${phHtml}${web}</div>`;
+}
+
+// Decide if a catalog company is a BUYER or RESELLER of the product, with a short reason.
+function assess(d, product){
+  const c=d.cat||'';
+  const P=product||'the product';
+  if(c==='hardware')   return {role:'Reseller', reason:`Hardware shop — can stock & resell ${P} to its customers`};
+  if(c==='safety')     return {role:'Reseller', reason:`Safety/PPE dealer — already sells protective goods, can resell ${P}`};
+  if(c==='tools')      return {role:'Reseller', reason:`Tools & machinery dealer — likely resells ${P}`};
+  if(c==='glove-maker')return {role:'Reseller', reason:`Glove maker — competitor or possible bulk supply partner`};
+  if(c==='welding')    return {role:'Buyer', reason:`Welding/fabrication shop — uses ${P} daily in work`};
+  if(c==='steel')      return {role:'Buyer', reason:`Steel firm — consumes ${P} in fabrication & handling`};
+  if(c==='construction')return {role:'Buyer', reason:`Construction firm — buys ${P} in bulk for site crews`};
+  if(c==='food')       return {role:'Buyer', reason:`Food factory — needs ${P} for hygiene & handling`};
+  if(c==='industrial') return {role:'Buyer', reason:`Industrial plant — uses ${P} in operations & safety`};
+  if(c==='gloves')     return {role:'Buyer', reason:`Buys/uses ${P} in its line of work`};
+  return {role:'', reason:''};
+}
+
+function offlineLeadCard(d, product){
+  const a=assess(d, product);
+  return leadCard({name:d.name, type:d.type||CATLABEL[d.cat]||'', addr:(d.addr||'')+(d.district?(' · '+d.district):''),
+                   phone:d.phone, website:'', role:a.role, reason:a.reason});
+}
+
+function offlineMatches(product,district,area){
+  let cats=catsForProduct(product);
+  const toks=product.toLowerCase().split(/[^a-z0-9]+/).filter(w=>w.length>3);
+  // Fallback: unknown product → cast a wide hardware/industrial net so results never come back empty
+  if(!cats) cats=["hardware","tools","steel","welding","construction","industrial"];
+  const inArea=(d)=>{
+    if(area)return ((d.addr||'')+' '+(d.district||'')).toLowerCase().includes(area.toLowerCase());
+    if(district)return d.district===district;
+    return true;
+  };
+  return CATALOG.filter(d=>{
+    const txt=((d.name||'')+' '+(d.type||'')+' '+(d.cat||'')).toLowerCase();
+    const ok=(cats&&cats.includes(d.cat))||toks.some(t=>txt.includes(t));
+    if(!ok)return false;
+    return inArea(d);
+  });
+}
+
+function product(){return document.getElementById('product').value.trim();}
+
+let LAST_OFFLINE=[]; // names shown offline, for dedupe against live
+
+function addRecent(p){
+  if(!p) return;
+  let arr=[];
+  try{ arr=JSON.parse(localStorage.getItem('recentProducts')||'[]'); }catch(e){}
+  arr=arr.filter(x=>x.toLowerCase()!==p.toLowerCase());
+  arr.unshift(p);
+  arr=arr.slice(0,8);
+  try{ localStorage.setItem('recentProducts',JSON.stringify(arr)); }catch(e){}
+  renderChips();
+}
+function renderChips(){
+  let arr=[];
+  try{ arr=JSON.parse(localStorage.getItem('recentProducts')||'[]'); }catch(e){}
+  const box=document.getElementById('recentChips');
+  if(!box) return;
+  box.innerHTML = arr.length ? ('<span style="font-size:11px;color:#8A8275;align-self:center;margin-right:2px">Recent:</span>'+
+    arr.map(p=>`<span class="chip" onclick="useChip('${p.replace(/'/g,"\\'")}')">${p}</span>`).join('')) : '';
+}
+function useChip(p){ document.getElementById('product').value=p; runSearch(); }
+
+function runSearch(){
+  const p=product(), dist=document.getElementById('district').value, area=document.getElementById('area').value.trim();
+  const root=document.getElementById('results');
+  if(!CATALOG.length){ root.innerHTML='<div class="empty">⏳ Loading your companies… please wait a moment, then it will search automatically.</div>'; setTimeout(runSearch,1200); return; }
+  addRecent(p);
+  const m=offlineMatches(p,dist,area);
+  LAST_OFFLINE=m.map(x=>(x.name||'').toLowerCase().trim());
+  const where = area?('"'+area+'"'):(dist||'all areas');
+  let html=`<div class="sec">📒 From your directory — ${m.length} match${m.length===1?'':'es'} (${where})</div>`;
+  html += m.length ? m.map(d=>offlineLeadCard(d,p)).join('') : '<div class="empty">No matches in your directory for that product/area. Try the web deep search below.</div>';
+  root.innerHTML=html;
+}
+
+// ---- Usage meter (per device, estimated) ----
+const COST={smart:0.70, deep:0.15, chat:0.08}; // rough USD estimates per action
+function loadUsage(){
+  try{ return JSON.parse(localStorage.getItem('aiUsage')||'{}'); }catch(e){ return {}; }
+}
+function todayKey(){ return new Date().toISOString().slice(0,10); }
+function trackUsage(kind, units){
+  const u=loadUsage();
+  const d=todayKey();
+  if(!u[d]) u[d]={smart:0,deep:0,chat:0};
+  u[d][kind]=(u[d][kind]||0)+(units||1);
+  // keep last 30 days
+  const days=Object.keys(u).sort().slice(-30);
+  const trimmed={}; days.forEach(k=>trimmed[k]=u[k]);
+  try{ localStorage.setItem('aiUsage', JSON.stringify(trimmed)); }catch(e){}
+  renderUsage();
+}
+function usageTotals(){
+  const u=loadUsage();
+  let today={smart:0,deep:0,chat:0}, all={smart:0,deep:0,chat:0};
+  const d=todayKey();
+  Object.keys(u).forEach(k=>{
+    ['smart','deep','chat'].forEach(t=>{ all[t]+=u[k][t]||0; if(k===d) today[t]+=u[k][t]||0; });
+  });
+  const cost=o=>o.smart*COST.smart+o.deep*COST.deep+o.chat*COST.chat;
+  return {today, all, todayCost:cost(today), allCost:cost(all)};
+}
+function renderUsage(){
+  const box=document.getElementById('usageBox'); if(!box) return;
+  const t=usageTotals();
+  box.innerHTML=`
+    <div class="distrow"><div class="dn">Today</div><div class="db"><i style="width:${Math.min(t.todayCost/5*100,100)}%"></i></div><div class="dv">$${t.todayCost.toFixed(2)}</div></div>
+    <div style="font-size:12px;color:var(--gray-mid);margin:8px 0 12px">${t.today.smart} Smart Find · ${t.today.deep} Deep Search · ${t.today.chat} Chat today</div>
+    <div class="distrow"><div class="dn">All time</div><div class="db"><i style="width:${Math.min(t.allCost/30*100,100)}%;background:var(--ink-soft)"></i></div><div class="dv">$${t.allCost.toFixed(2)}</div></div>
+    <div style="font-size:11px;color:var(--gray-mid);margin-top:10px;line-height:1.5">Estimated only — actual cost varies. Gold "Find buyers &amp; sellers" is free. <a href="javascript:void(0)" onclick="resetUsage()" style="color:var(--gold-dark)">Reset</a></div>`;
+}
+function resetUsage(){ if(confirm('Reset usage counter?')){ localStorage.removeItem('aiUsage'); renderUsage(); } }
+
+async function smartFind(){
+  const p=product(), dist=document.getElementById('district').value, area=document.getElementById('area').value.trim();
+  const root=document.getElementById('results');
+  if(!CATALOG.length){ root.innerHTML='<div class="empty">⏳ Loading your companies… please wait a moment.</div>'; setTimeout(smartFind,1200); return; }
+  addRecent(p);
+  const m=offlineMatches(p,dist,area);
+  if(!m.length){ root.innerHTML='<div class="sec">🔎 Smart Find</div><div class="empty">No companies in your directory match that area. Try All districts or the web deep search.</div>'; return; }
+
+  // batch the matched companies
+  const BATCH=40;
+  const batches=[];
+  for(let i=0;i<m.length;i+=BATCH) batches.push(m.slice(i,i+BATCH));
+  const where = area?('"'+area+'"'):(dist||'all areas');
+  root.innerHTML=`<div class="sec">🔎 Smart Find — researching ${m.length} of your shops for "${p}" (${where})</div>
+    <div class="empty" id="smartProg">Working through ${batches.length} batch${batches.length===1?'':'es'}… this can take up to a minute. Results appear below as they come.</div>
+    <div id="smartOut"></div>`;
+  const out=document.getElementById('smartOut');
+  let shown=0;
+
+  for(let b=0;b<batches.length;b++){
+    const list=batches[b].map((d,i)=>`${i+1}. ${d.name} | ${d.type||d.cat} | ${d.district||''} | ${d.phone||''}`).join('\n');
+    const prompt=`A supplier in Sri Lanka sells "${p}". Below is part of their real business directory (hardware shops, traders, factories, safety dealers, steel/welding firms, etc.).
+Most of these are general hardware/trading businesses whose NAME may not mention "${p}" — but many would still BUY or RESELL it (e.g. a hardware shop resells gloves; a factory or fabricator buys gloves). Be INCLUSIVE: keep any business that could plausibly buy or resell "${p}", not just ones with the product in their name. Only drop ones that are clearly unrelated.
+For each kept business give role (Buyer or Reseller) and a short reason.
+Return ONLY a JSON array using the EXACT name and phone from the list: [{"name","phone","role","reason"}]. Keep as many as reasonably fit.
+
+DIRECTORY:
+${list}`;
+    try{
+      const res=await fetch('https://tycoon-vercel.vercel.app/api/trade-search',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({prompt:prompt})
+      });
+      trackUsage('smart',1);
+      const data=await res.json();
+      let text=data.text||""; let arr=[];
+      const mm=text.match(/\[[\s\S]*\]/);
+      if(mm){ try{ arr=JSON.parse(mm[0]); }catch(e){ (text.match(/\{[^{}]*\}/g)||[]).forEach(o=>{try{arr.push(JSON.parse(o))}catch(_){}}); } }
+      // Fallback: if AI returned nothing for this batch, show the batch with category-based assessment
+      if(!arr.length){
+        batches[b].forEach(full=>{
+          const a=assess(full,p);
+          out.insertAdjacentHTML('beforeend', leadCard({name:full.name,type:full.type||full.cat,addr:(full.addr||'')+(full.district?' · '+full.district:''),phone:full.phone,website:'',role:a.role,reason:a.reason}));
+          shown++;
+        });
+      } else {
+        arr.forEach(r=>{
+          const full=m.find(x=>(x.name||'').toLowerCase().trim()===(r.name||'').toLowerCase().trim());
+          const d=full?{name:full.name,type:full.type||full.cat,addr:(full.addr||'')+(full.district?' · '+full.district:''),phone:full.phone||r.phone,website:'',role:r.role,reason:r.reason}
+                       :{name:r.name,phone:r.phone,role:r.role,reason:r.reason};
+          out.insertAdjacentHTML('beforeend', leadCard(d));
+          shown++;
+        });
+      }
+    }catch(e){
+      // Network/backend failure for this batch — still show these shops with category assessment
+      batches[b].forEach(full=>{
+        const a=assess(full,p);
+        out.insertAdjacentHTML('beforeend', leadCard({name:full.name,type:full.type||full.cat,addr:(full.addr||'')+(full.district?' · '+full.district:''),phone:full.phone,website:'',role:a.role,reason:a.reason}));
+        shown++;
+      });
+    }
+    document.getElementById('smartProg').textContent=`Researched ${Math.min((b+1)*BATCH,m.length)} of ${m.length} shops — ${shown} matches so far…`;
+  }
+  document.getElementById('smartProg').textContent = shown? `✅ Done — ${shown} matches from your directory for "${p}".` : 'No matches. Try the web deep search.';
+}
+
+async function deepSearch(){
+  const p=product(), dist=document.getElementById('district').value, area=document.getElementById('area').value.trim();
+  const root=document.getElementById('results');
+  const where = area || dist || 'Sri Lanka';
+  // show offline first
+  runSearch();
+  const live=document.createElement('div');
+  live.innerHTML=`<div class="sec">🌐 Live web results</div><div class="loading"><span class="spin"></span>Searching the web for ${p} buyers & sellers in ${where}…</div>`;
+  root.appendChild(live);
+
+  const prompt=`You are a B2B sales-lead researcher for a supplier in Sri Lanka who wants to sell "${p}".
+First think: which kinds of organisations in Sri Lanka would NEED or BUY "${p}"? (For example, for masks: hospitals, clinics, pharmacies, factories, salons, dental clinics; for gloves: food factories, hospitals, labs, cleaning firms; for welding rods: fabricators, workshops, shipyards.) Also think which shops/distributors would RESELL it.
+Then search Rainbow Pages, Yellow Pages, Wedabima, Google, Facebook business pages, BOI/EDB and company websites for REAL such businesses in or near ${where}, Sri Lanka.
+
+For EACH business decide:
+- BUYER (would purchase "${p}" for their own use), or
+- RESELLER (a shop/distributor/importer that would stock and resell "${p}")
+and give a short specific REASON.
+
+Return ONLY a JSON array, no prose. Each item:
+{"name","type","addr","phone","website","role","reason"}
+- "role": exactly "Buyer" or "Reseller"
+- "reason": one short sentence why they're a lead for "${p}"
+- "website": website or Facebook URL if found, else ""
+- "phone": phone if known, else ""
+Only real, verifiable businesses. Return 12-20 of the strongest leads.`;
+
+
+
+  try{
+    const res=await fetch('https://tycoon-vercel.vercel.app/api/trade-search',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:prompt})
+    });
+    const data=await res.json();
+    trackUsage('deep',1);
+    let text=data.text||"";
+    let arr=[];
+    // Robust parse: try full array, then objects, then loosen
+    let mm=text.match(/\[[\s\S]*\]/);
+    if(mm){ try{ arr=JSON.parse(mm[0]); }catch(e){
+      // salvage individual {...} objects
+      const objs=text.match(/\{[^{}]*\}/g)||[];
+      for(const o of objs){ try{ arr.push(JSON.parse(o)); }catch(_){} }
+    }}
+    if(!Array.isArray(arr)) arr=[];
+    // Dedupe: drop live results already shown in the offline directory
+    arr=arr.filter(d=>d&&d.name && !LAST_OFFLINE.includes((d.name||'').toLowerCase().trim()));
+    if(arr.length){
+      live.innerHTML=`<div class="sec">🌐 Live web results — ${arr.length} new (not in your directory)</div>`+
+        arr.map(d=>leadCard(d)).join('');
+    }else{
+      live.innerHTML=`<div class="sec">🌐 Live web results</div><div class="empty">No new web results beyond your directory this time. Try a nearby town or a broader product word.</div>`;
+    }
+  }catch(e){
+    live.innerHTML=`<div class="sec">🌐 Live web results</div><div class="empty">Live search unavailable right now (offline directory above still works).</div>`;
+  }
+}
+
+// ---- AI Trade Assistant chat ----
+let CHAT_HISTORY=[];
+function catalogContext(){
+  // Compact the catalog for the prompt (name | type | district | phone)
+  return CATALOG.map(d=>`${d.name} | ${d.type||d.cat} | ${d.district||''} | ${d.phone||''}`).join('\n');
+}
+function bubble(text, who){
+  const log=document.getElementById('chatLog');
+  const div=document.createElement('div');
+  div.className='bub '+(who==='me'?'me':'ai');
+  // linkify phone numbers lightly
+  div.innerHTML = text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  log.appendChild(div); log.scrollTop=log.scrollHeight;
+  return div;
+}
+async function askChat(preset){
+  const input=document.getElementById('chatInput');
+  const q = preset || input.value.trim();
+  if(!q) return;
+  if(!preset) input.value='';
+  bubble(q,'me');
+  const t=document.createElement('div'); t.className='typing'; t.textContent='Assistant is thinking…';
+  document.getElementById('chatLog').appendChild(t);
+
+  const sys=`You are the Trade Assistant for a Sri Lankan importer/supplier. You help find business leads and write outreach.
+You have a directory of ${CATALOG.length} real businesses below (format: Name | Type | District | Phone).
+HOW TO ANSWER:
+1. FIRST use the directory below. When the user asks who would buy/sell a product, pick the most relevant businesses FROM THIS DIRECTORY, explain briefly why each is a lead (buyer or reseller), and include their phone number.
+2. If the directory does not have enough relevant businesses, USE WEB SEARCH to find more real Sri Lankan businesses, and clearly label those as "(from web)".
+3. When asked to write a WhatsApp or email message, write a short, friendly, professional message in simple language suitable for Sri Lankan business owners. Keep WhatsApp messages under 60 words.
+Be concise and practical. Prefer the directory; use the web to fill gaps.
+
+DIRECTORY:
+${catalogContext()}`;
+
+  CHAT_HISTORY.push({role:'user', content:q});
+  // keep last 6 turns to stay light
+  const recent=CHAT_HISTORY.slice(-6);
+  const prompt = sys + "\n\nConversation so far:\n" +
+    recent.map(m=>(m.role==='user'?'User: ':'Assistant: ')+m.content).join('\n') +
+    "\n\nAnswer as the Assistant:";
+
+  try{
+    const res=await fetch('https://tycoon-vercel.vercel.app/api/trade-search',{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({prompt:prompt})
+    });
+    const data=await res.json();
+    trackUsage('chat',1);
+    const text=(data.text||"").trim() || "Sorry, I couldn't get an answer just now. Please try again.";
+    t.remove();
+    bubble(text,'ai');
+    CHAT_HISTORY.push({role:'assistant', content:text});
+  }catch(e){
+    t.remove();
+    bubble("Connection problem — please try again in a moment.",'ai');
+  }
+}
+
+function statusColor(s){
+  s=(s||'').toLowerCase();
+  if(s.includes('interested')&&!s.includes('not')) return '#E8F0E2';
+  if(s.includes('not')) return '#F6E2E2';
+  if(s.includes('follow')) return '#FBEFD6';
+  if(s.includes('won')) return '#DDEBFF';
+  return '#ECE6DA';
+}
+let HIST_FILTER='All';
+function setHistFilter(f){ HIST_FILTER=f; showHistory(); }
+function exportContacts(){
+  if(!CONTACT_LOG.length){ alert('No contacts to export yet.'); return; }
+  const rows=[['Shop','Channel','Product','Status','Note','Date']];
+  CONTACT_LOG.forEach(r=>rows.push([r.shop_name||'',r.channel||'',r.product||'',r.status||'Contacted',(r.note||'').replace(/\n/g,' '),(r.contacted_at||'').slice(0,10)]));
+  const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download='lanka-trade-contacts.csv'; a.click();
+}
+async function addLeadPrompt(){
+  const name=prompt('Company / shop name:'); if(!name) return;
+  const phone=prompt('Phone number (optional):')||'';
+  await logContact(name.trim(), phone?'call':'manual', '');
+  if(phone){ const k=name.toLowerCase().trim(); } // logged
+  showHistory(); renderDashboard();
+}
+function showHistory(){
+  const root=document.getElementById('historyView');
+  if(!root) return;
+  const STAT=['Contacted','Interested','Follow up','Not interested','Won'];
+  const FILTERS=['All','Interested','Follow up','Not interested','Won'];
+  const bar=`<div class="sec">Contacts &amp; follow-up — ${CONTACT_LOG.length} lead${CONTACT_LOG.length===1?'':'s'}</div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+      <button class="btn2" style="width:auto;margin:0;padding:9px 13px" onclick="addLeadPrompt()">＋ Add lead</button>
+      <button class="btn2" style="width:auto;margin:0;padding:9px 13px" onclick="exportContacts()">⤓ Export Excel</button>
+    </div>
+    <div class="chips" id="histFilters">${FILTERS.map(f=>`<span class="chip" style="${f===HIST_FILTER?'background:var(--gold-grad);color:#fff;border-color:transparent':''}" onclick="setHistFilter('${f}')">${f}</span>`).join('')}</div>`;
+  if(!CONTACT_LOG.length){
+    root.innerHTML=bar+'<div class="empty">No contacts logged yet. Find a lead and tap WhatsApp, Call or Email — it gets recorded here automatically. Or tap ＋ Add lead.</div>';
+    return;
+  }
+  const list=HIST_FILTER==='All'?CONTACT_LOG:CONTACT_LOG.filter(r=>(r.status||'Contacted')===HIST_FILTER);
+  let html=bar;
+  if(!list.length){ html+=`<div class="empty">No "${HIST_FILTER}" leads yet.</div>`; root.innerHTML=html; return; }
+  html += list.map(r=>{
+    const ch = r.channel==='whatsapp' ? '🟢 WhatsApp' : (r.channel==='email' ? '✉️ Email' : (r.channel==='call' ? '📞 Call' : '✎ Added'));
+    const cur=r.status||'Contacted';
+    const opts=STAT.map(s=>`<option ${s===cur?'selected':''}>${s}</option>`).join('');
+    return `<div class="biz" style="border-left:5px solid ${statusColor(cur)}">
+      <div class="nm">${r.shop_name||''}</div>
+      <div class="meta">${ch}${r.product?(' · '+r.product):''} · ${timeAgo(r.contacted_at)}</div>
+      <div style="display:flex;gap:8px;margin-top:8px;align-items:center">
+        <select onchange="updateStatus(${r.id}, this.value); this.parentElement.parentElement.style.borderLeftColor=statusColor(this.value)" style="flex:0 0 auto;width:auto;padding:7px 10px;font-size:13px">${opts}</select>
+      </div>
+      <input placeholder="Add a note: what did they say?" value="${(r.note||'').replace(/"/g,'&quot;')}" onblur="updateNote(${r.id}, this.value)" style="margin-top:8px;font-size:13px;padding:9px 11px"/>
+    </div>`;
+  }).join('');
+  root.innerHTML=html;
+}
+
+function renderDashboard(){
+  renderUsage();
+  // stats from CONTACT_LOG
+  const total=CONTACT_LOG.length;
+  const uniq=new Set(CONTACT_LOG.map(r=>(r.shop_name||'').toLowerCase().trim())).size;
+  const interested=CONTACT_LOG.filter(r=>(r.status||'')==='Interested').length;
+  const won=CONTACT_LOG.filter(r=>(r.status||'')==='Won').length;
+  const setT=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=v;};
+  setT('stCon', uniq);
+  setT('stInt', interested);
+  setT('stWon', won);
+  const base=Math.max(total,1);
+  const setB=(id,v)=>{const e=document.getElementById(id);if(e)e.style.width=Math.round(v/base*100)+'%';};
+  setB('barCon', uniq); setB('barInt', interested); setB('barWon', won);
+
+  // district chart
+  const dc=document.getElementById('distChart');
+  if(dc){
+    if(!CATALOG.length){ dc.innerHTML='<div class="empty">Loading…</div>'; }
+    else{
+      const counts={};
+      CATALOG.forEach(c=>{const d=c.district||'Other';counts[d]=(counts[d]||0)+1;});
+      const arr=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,7);
+      const max=arr.length?arr[0][1]:1;
+      dc.innerHTML=arr.map(([d,n])=>`<div class="distrow"><div class="dn">${d}</div><div class="db"><i style="width:${Math.round(n/max*100)}%"></i></div><div class="dv">${n}</div></div>`).join('');
+    }
+  }
+  // recent activity
+  const ra=document.getElementById('recentActivity');
+  if(ra){
+    if(!CONTACT_LOG.length){ ra.innerHTML='<div class="empty">No contacts yet. Find a lead and reach out.</div>'; }
+    else{
+      ra.innerHTML=CONTACT_LOG.slice(0,6).map(r=>{
+        const ch = r.channel==='whatsapp' ? '🟢' : (r.channel==='email' ? '✉️' : (r.channel==='call'?'📞':'•'));
+        const cur=r.status||'Contacted';
+        return `<div class="distrow" style="gap:8px"><div style="flex:1;color:var(--ink);font-weight:500">${ch} ${r.shop_name||''}</div><span class="badge" style="background:${statusColor(cur)};color:var(--ink-soft)">${cur}</span></div>`;
+      }).join('');
+    }
+  }
+}
+
+loadCatalog().then(()=>{ renderChips(); });
+loadContacted().then(()=>{ renderDashboard(); });
+</script>
+</body>
+</html>
